@@ -298,7 +298,7 @@ struct f2fs_dir_entry *find_in_inline_dir(struct inode *dir,
 
 	inline_dentry = inline_data_addr(ipage);
 
-	make_dentry_ptr(&d, (void *)inline_dentry, 2);
+	make_dentry_ptr(NULL, &d, (void *)inline_dentry, 2);
 	de = find_target_dentry(name, NULL, &d);
 
 	unlock_page(ipage);
@@ -342,7 +342,7 @@ int make_empty_inline_dir(struct inode *inode, struct inode *parent,
 
 	dentry_blk = inline_data_addr(ipage);
 
-	make_dentry_ptr(&d, (void *)dentry_blk, 2);
+	make_dentry_ptr(NULL, &d, (void *)dentry_blk, 2);
 	do_make_empty_dir(inode, parent, &d);
 
 	set_page_dirty(ipage);
@@ -417,7 +417,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *name,
 	struct f2fs_inline_dentry *dentry_blk = NULL;
 	struct f2fs_dentry_ptr d;
 	int slots = GET_DENTRY_SLOTS(namelen);
-	struct page *page;
+	struct page *page = NULL;
 	int err = 0;
 
 	ipage = get_node_page(sbi, dir->i_ino);
@@ -446,7 +446,7 @@ int f2fs_add_inline_entry(struct inode *dir, const struct qstr *name,
 	f2fs_wait_on_page_writeback(ipage, NODE);
 
 	name_hash = f2fs_dentry_hash(name);
-	make_dentry_ptr(&d, (void *)dentry_blk, 2);
+	make_dentry_ptr(NULL, &d, (void *)dentry_blk, 2);
 	f2fs_update_dentry(ino, mode, &d, name, name_hash, bit_pos);
 
 	set_page_dirty(ipage);
@@ -523,19 +523,16 @@ bool f2fs_empty_inline_dir(struct inode *dir)
 	return true;
 }
 
-int f2fs_read_inline_dir(struct file *file, void *dirent, filldir_t filldir)
+int f2fs_read_inline_dir(struct file *file, struct dir_context *ctx,
+				struct f2fs_str *fstr)
 {
-	unsigned long pos = file->f_pos;
-	unsigned int bit_pos = 0;
 	struct inode *inode = file_inode(file);
 	struct f2fs_inline_dentry *inline_dentry = NULL;
 	struct page *ipage = NULL;
 	struct f2fs_dentry_ptr d;
 
-	if (pos >= NR_INLINE_DENTRY)
+	if (ctx->pos == NR_INLINE_DENTRY)
 		return 0;
-
-	bit_pos = (pos % NR_INLINE_DENTRY);
 
 	ipage = get_node_page(F2FS_I_SB(inode), inode->i_ino);
 	if (IS_ERR(ipage))
@@ -543,10 +540,10 @@ int f2fs_read_inline_dir(struct file *file, void *dirent, filldir_t filldir)
 
 	inline_dentry = inline_data_addr(ipage);
 
-	make_dentry_ptr(&d, (void *)inline_dentry, 2);
+	make_dentry_ptr(inode, &d, (void *)inline_dentry, 2);
 
-	if (!f2fs_fill_dentries(file, dirent, filldir, &d, 0, bit_pos))
-		file->f_pos = NR_INLINE_DENTRY;
+	if (!f2fs_fill_dentries(ctx, &d, 0, fstr))
+		ctx->pos = NR_INLINE_DENTRY;
 
 	f2fs_put_page(ipage, 1);
 	return 0;
