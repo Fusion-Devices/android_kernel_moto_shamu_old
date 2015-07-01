@@ -22,6 +22,10 @@ LC_COLLATE=C
 LC_NUMERIC=C
 export LC_COLLATE LC_NUMERIC
 
+KBUILD_BUILD_USER=Jacob
+KBUILD_BUILD_HOST=Xile
+export KBUILD_BUILD_USER KBUILD_BUILD_HOST
+
 # We are using a recursive build, so we need to do a little thinking
 # to get the ordering right.
 #
